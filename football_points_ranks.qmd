@@ -1,0 +1,323 @@
+---
+title: "Zahlen, die der Fussball (nicht) braucht"
+author: "Patrice Siegrist"
+date: Sys.Date()
+      rmarkdown::render(inputFile,
+                        encoding = encoding,
+                        output_file = file.path( dirname(inputFile), "../04_report/code", "Code.html") )
+                        
+format:
+  html:
+    embed-resources: true
+    theme: jounral
+    page-layout: article
+    # theme: flatly
+    # theme: minty
+    title-block-banner: "#3F1052"
+    # title-block-banner-color: "#FFF"
+    code-fold: true
+    code-tools: true
+    toc: true
+    toc-location: left
+    toc-title: "Sections"
+    number-sections: true
+    number-depth: 2
+    code-block-bg: true
+    code-block-border-left: "#01623F"
+editor_options: 
+  markdown: 
+    wrap: 180
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE)
+```
+
+```{r, echo=FALSE}
+#Clear Workspace
+rm(list = ls())
+```
+
+
+```{r, echo=FALSE}
+
+#Load libraries
+library(tidyverse)
+library(reactable)
+library(reactablefmtr)
+library(readxl)
+library(writexl)
+library(openxlsx)
+library(haven)
+library(labelled)
+library(weights)
+library(pollster)
+library(sjlabelled)
+library(lubridate)
+library(janitor)
+library(naniar)
+library(ggthemes)
+library(showtext)
+library(plotly)
+library(tidyr)
+library(purrr)
+showtext_auto()
+showtext_opts(dpi=300) #to fix Visualisation bug with polygon edge not found in ggplot
+
+```
+
+```{r, echo = FALSE}
+
+df_superleague <- read.csv("super-league.csv")
+df_bundesliga <- read.csv("bundesliga.csv")
+df_premier <- read.csv("premier-league.csv")
+
+
+
+```
+
+
+```{r, echo=FALSE}
+#dataframe < the data
+
+
+
+get_facetwrap_plots <- function(dataframe, 
+                                variable,
+                                title,
+                                subtitle,
+                                caption,
+                                color1,
+                                color2,
+                                plotname) {
+  
+  plotdata <- dataframe 
+  if (grepl("rank", variable)) {
+        plotdata <- plotdata %>% 
+          mutate(plotvar = plotdata %>% pull(!! sym(variable))*-1,
+                 rank = !!sym(variable))
+
+  } else {
+    plotdata <- plotdata %>% 
+          mutate(plotvar = plotdata %>% pull(!! sym(variable)))
+
+}
+  plotdata_sorted <- plotdata[plotdata$round_num == max(plotdata$round_num), ]
+
+plot <-   ggplot(plotdata, aes(x = round_num, y = plotvar)) +
+        geom_line(color = color1, size = 1) + 
+    geom_point(data = plotdata_sorted, color=color2, size=8) +
+    geom_text (data = plotdata_sorted, aes(label =   round(!! sym(variable), 2), x = round_num, y = plotvar),   size = 4, color = "white"
+        ) +
+    facet_wrap(~reorder(plotdata_sorted$team, plotdata_sorted$rank),   ncol=2) + # reorder by rank
+
+    theme_fivethirtyeight() +
+      labs(title = title, 
+           subtitle = subtitle,
+           caption = caption,
+           x = "", 
+         y = "Weighted Mean") +
+      theme(
+        legend.title = element_blank(),
+        legend.position = "none",
+        title = element_text(size=16),
+        strip.text.x = element_text(size = 12, color="Black", face =   "bold"),
+        axis.text.y =element_blank(),
+          panel.grid.minor = element_blank(),
+        ) +
+    scale_y_continuous(limits = c(min(plotdata$plotvar)*1.05, max(plotdata$plotvar)+1.5),labels = function(x) abs(x)) #to get rid off the - in the ranking on the y-axis
+  
+print(plot)
+    ggsave(paste0("plots/",plotname,"_",variable,".png"), width =   9, height = 16)
+  
+  
+
+}
+
+
+```
+
+Pünktlich zum Fussball-Frühling ein paar Zahlen. 
+
+Die Daten sind alle von der  [SWISS-TXT-API](http://test.sport.api.swisstxt.ch/v1/docs/) heruntergeladen.
+
+Ich aktualisiere sie voraussichtlich regelmässig. Also innert ein paar Tagen nach einer abgeschlossenen Spielrunde. 
+
+
+# Super League
+
+### Punkte-Durchschnitt
+
+Die folgenden Grafiken zeigen rollende Punktedurchschnitte (für 5 und 10 Spiele). Es sind quasi die (kurzfristigen) Formkurven der Teams.
+
+```{r, echo=FALSE, fig.width=9, fig.height=16}
+
+
+get_facetwrap_plots(df_superleague,
+                    "avg_points_last_5",
+                    "Entwicklung des 5-Spiele-Punkte-Durchschnitts",
+                    "",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#bedaf6",
+                    "#173373",
+                    "superleague")
+ 
+
+get_facetwrap_plots(df_superleague,
+                    "avg_points_last_10",
+                    "Entwicklung des 10-Spiele-Punkte-Durchschnitts",
+                    "",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#bedaf6",
+                    "#173373",
+                    "superleague")
+
+```
+
+### Die sehr wahrscheinlich falsche Schlussrang-Tabelle
+
+Was wäre wenn? Die Frage, die sich unzählige Fans andauernd stellen. Hier gibt es numerische Antworten auf die Frage: Wie würde die Schlusstabelle aussehen, wenn der Punktedurchschnitt der vergangenen 5/10 Spiele bei allen Teams bis Ende Saison gleich bleiben würde.
+
+```{r, echo=FALSE, fig.width=9, fig.height=16}
+
+ get_facetwrap_plots(df_superleague,
+                    "rank_proj5",
+                    "Die Entwicklung der «Was wäre wenn…»-Tabelle",
+                    "Schlussrang, wenn alle Teams den Punkteschnitt (5 Spiele) beibehalten würden",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#bedaf6",
+                    "#173373",
+                    "superleague")
+
+ 
+
+ get_facetwrap_plots(df_superleague,
+                    "rank_proj10",
+                    "Die Entwicklung der «Was wäre wenn…»-Tabelle",
+                    "Schlussrang, wenn alle Teams den Punkteschnitt (10 Spiele) beibehalten würden",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#bedaf6",
+                    "#173373",
+                    "superleague")
+ 
+
+```
+
+# Bundesliga
+
+
+### Punkte-Durchschnitt
+
+Die folgenden Grafiken zeigen rollende Punktedurchschnitte (für 5 und 10 Spiele). Es sind quasi die (kurzfristigen) Formkurven der Teams.
+
+```{r, echo=FALSE, fig.width=9, fig.height=16}
+
+get_facetwrap_plots(df_bundesliga,
+                    "avg_points_last_5",
+                    "Entwicklung des 5-Spiele-Punkte-Durchschnitts",
+                    "",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#e6a7a5",
+                    "#d3120b",
+                    "bundesliga")
+
+
+get_facetwrap_plots(df_bundesliga,
+                    "avg_points_last_10",
+                    "Entwicklung des 10-Spiele-Punkte-Durchschnitts",
+                    "",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#e6a7a5",
+                    "#d3120b",
+                    "bundesliga")
+
+```
+
+### Die sehr wahrscheinlich falsche Schlussrang-Tabelle
+
+Was wäre wenn? Die Frage, die sich unzählige Fans andauernd stellen. Hier gibt es numerische Antworten auf die Frage: Wie würde die Schlusstabelle aussehen, wenn der Punktedurchschnitt der vergangenen 5/10 Spiele bei allen Teams bis Ende Saison gleich bleiben würde.
+
+```{r, echo=FALSE, fig.width=9, fig.height=16}
+
+get_facetwrap_plots(df_bundesliga,
+                    "rank_proj5",
+                    "Die Entwicklung der «Was wäre wenn…»-Tabelle",
+                    "Schlussrang, wenn alle Teams den Punkteschnitt (5 Spiele) beibehalten würden",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#e6a7a5",
+                    "#d3120b",
+                    "bundesliga")
+
+get_facetwrap_plots(df_bundesliga,
+                    "rank_proj10",
+                    "Die Entwicklung der «Was wäre wenn…»-Tabelle",
+                    "Schlussrang, wenn alle Teams den Punkteschnitt (10 Spiele) beibehalten würden",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#e6a7a5",
+                    "#d3120b",
+                    "bundesliga")
+
+
+```
+
+# Premier League
+
+### Punkte-Durchschnitt
+
+Die folgenden Grafiken zeigen rollende Punktedurchschnitte (für 5 und 10 Spiele). Es sind quasi die (kurzfristigen) Formkurven der Teams.
+
+```{r, echo=FALSE, fig.width=9, fig.height=16}
+
+ get_facetwrap_plots(df_premier,
+                    "avg_points_last_5",
+                    "Entwicklung des 5-Spiele-Punkte-Durchschnitts",
+                    "",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#a790b0",
+                    "#3F1052",
+                    "premierleague")
+
+
+get_facetwrap_plots(df_premier,
+                    "avg_points_last_10",
+                    "Entwicklung des 10-Spiele-Punkte-Durchschnitts",
+                    "",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#a790b0",
+                    "#3F1052",
+                    "premierleague")
+
+
+
+```
+
+### Die sehr wahrscheinlich falsche Schlussrang-Tabelle
+
+Was wäre wenn? Die Frage, die sich unzählige Fans andauernd stellen. Hier gibt es numerische Antworten auf die Frage: Wie würde die Schlusstabelle aussehen, wenn der Punktedurchschnitt der vergangenen 5/10 Spiele bei allen Teams bis Ende Saison gleich bleiben würde.
+
+
+```{r, echo=FALSE, fig.width=9, fig.height=16}
+ get_facetwrap_plots(df_premier,
+                    "rank_proj5",
+                    "Die Entwicklung der «Was wäre wenn…»-Tabelle",
+                    "Schlussrang, wenn alle Teams den Punkteschnitt (5 Spiele) beibehalten würden",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#a790b0",
+                    "#3F1052",
+                    "premierleague")
+
+ get_facetwrap_plots(df_premier,
+                    "rank_proj10",
+                    "Die Entwicklung der «Was wäre wenn…»-Tabelle",
+                    "Schlussrang, wenn alle Teams den Punkteschnitt (10 Spiele) beibehalten würden",
+                    "Für die ersten Runden wird die Anzahl Punkte durch die absolvierten Spiele dividiert. Quelle:SWISS TXT",
+                    "#a790b0",
+                    "#3F1052",
+                    "premierleague")
+
+
+```
+
+
+
