@@ -69,10 +69,8 @@ showtext_opts(dpi=300) #to fix Visualisation bug with polygon edge not found in 
 
 ```{r, echo = FALSE}
 
-df_superleague <- read.csv("super-league.csv")
-df_bundesliga <- read.csv("bundesliga.csv")
-df_premier <- read.csv("premier-league.csv")
-
+df_superleague <- read.csv("data/super-league.csv")
+df_bundesliga <- read.csv("data/bundesliga.csv")
 
 
 ```
@@ -107,7 +105,7 @@ get_facetwrap_plots <- function(dataframe,
 
 plot <-   ggplot(plotdata, aes(x = round_num, y = plotvar)) +
         geom_line(color = color1, size = 1) + 
-    geom_point(data = plotdata_sorted, color=color2, size=8) +
+    geom_point(data = plotdata_sorted, color=color2, size=8, alpha=0.6) +
     geom_text (data = plotdata_sorted, aes(label =   round(!! sym(variable), 2), x = round_num, y = plotvar),   size = 4, color = "white"
         ) +
     facet_wrap(~reorder(plotdata_sorted$team, plotdata_sorted$rank),   ncol=2) + # reorder by rank
@@ -115,7 +113,7 @@ plot <-   ggplot(plotdata, aes(x = round_num, y = plotvar)) +
     theme_fivethirtyeight() +
       labs(title = title, 
            subtitle = subtitle,
-           caption = caption,
+           caption = paste0(caption,"\n Stand: ", last(unique(df_superleague$displayName))),
            x = "", 
          y = "Weighted Mean") +
       theme(
@@ -124,7 +122,8 @@ plot <-   ggplot(plotdata, aes(x = round_num, y = plotvar)) +
         title = element_text(size=16),
         strip.text.x = element_text(size = 12, color="Black", face =   "bold"),
         axis.text.y =element_blank(),
-          panel.grid.minor = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.caption = element_text(size=10)
         ) +
     scale_y_continuous(limits = c(min(plotdata$plotvar)*1.05, max(plotdata$plotvar)+1.5),labels = function(x) abs(x)) #to get rid off the - in the ranking on the y-axis
   
