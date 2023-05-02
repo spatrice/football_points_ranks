@@ -113,7 +113,7 @@ plot <-   ggplot(plotdata, aes(x = round_num, y = plotvar)) +
     theme_fivethirtyeight() +
       labs(title = title, 
            subtitle = subtitle,
-           caption = paste0(caption,"\n Stand: ", last(unique(df_superleague$displayName))),
+           caption = paste0(caption,"\n Stand: ", last(unique(plotdata$displayName))),
            x = "", 
          y = "Weighted Mean") +
       theme(
@@ -128,7 +128,7 @@ plot <-   ggplot(plotdata, aes(x = round_num, y = plotvar)) +
     scale_y_continuous(limits = c(min(plotdata$plotvar)*1.05, max(plotdata$plotvar)+1.5),labels = function(x) abs(x)) #to get rid off the - in the ranking on the y-axis
   
 print(plot)
-    ggsave(paste0("plots/",plotname,"_",variable,".png"), width =   9, height = 16)
+    ggsave(paste0("plots/",plotname,"_",variable,"_",last(unique(plotdata$displayName)),".png"), width =   9, height = 16)
   
   
 
