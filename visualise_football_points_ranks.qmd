@@ -95,11 +95,15 @@ get_facetwrap_plots <- function(dataframe,
   if (grepl("rank", variable)) {
         plotdata <- plotdata %>% 
           mutate(plotvar = plotdata %>% pull(!! sym(variable))*-1,
-                 rank = !!sym(variable))
+                 rank = !!sym(variable),
+                 team = recode(team,
+                               "Grasshopper Club Zürich" = "GC"))
 
   } else {
     plotdata <- plotdata %>% 
-          mutate(plotvar = plotdata %>% pull(!! sym(variable)))
+          mutate(plotvar = plotdata %>% pull(!! sym(variable)),
+                 team = recode(team,
+                               "Grasshopper Club Zürich" = "GC"))
 
 }
   plotdata_sorted <- plotdata[plotdata$round_num == max(plotdata$round_num), ]
